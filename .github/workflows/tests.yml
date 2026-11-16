@@ -1,0 +1,61 @@
+name: Run Unit Tests
+
+# ------------------------------------------------------------------
+# WHEN the workflow runs (enhanced triggers)
+# ------------------------------------------------------------------
+on:
+  # 1. Push to main: only when code, tests, dependencies or this
+  #    workflow file change. Edits to README or other docs are skipped.
+  push:
+    branches: [main]
+    paths:
+      - "src/**.py"
+      - "tests/**.py"
+      - "requirements.txt"
+      - ".github/workflows/tests.yml"
+
+  # 2. Pull request into main: test the change before it is merged,
+  #    using the same path filter.
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**.py"
+      - "tests/**.py"
+      - "requirements.txt"
+      - ".github/workflows/tests.yml"
+
+  # 3. Manual run button in the Actions tab (useful for the demo).
+  workflow_dispatch:
+
+# ------------------------------------------------------------------
+# Cancel an older run on the same branch/PR when a newer push arrives,
+# so quick repeated pushes do not queue up repeated test runs.
+# ------------------------------------------------------------------
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ------------------------------------------------------------------
+# WHAT the workflow does
+# ------------------------------------------------------------------
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        run: python -m pytest -v --cov=src --cov-report=term-missing
